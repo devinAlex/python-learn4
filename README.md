@@ -60,3 +60,16 @@ class FloatRange:
 for x in reversed(FloatRange(1.0, 4.0, 0.5)):
 	print x
 ```
+### 三，如何对迭代器做切片操作？
+##### 实际案列：
+有某个文本文件，我们想读取其中某范围的内容如100~300行之间的内容，python中文本文件是可迭代对象，我们是否可以使用类似列表切片的方式得到一个100~300行文件内容的生成器?f = open('/var/log/dmesg')  f[[100:300] #可以么？</br>
+**lines = f.readlines() 文件过大，导致内存不足**
+##### 解决方案：
+使用标准库中的itertools.islice,它能返回一个迭代对象切片的生成器。
+```
+from itertools import islice
+f = open('C:\\Users\\Administrator\\Desktop\\111.txt')
+for line in islice(f, 12, 25):
+	print line
+**#islice(f, 500) 表示前500行   islice(f, 100, None) 表示100行以后   负引索不支持**
+```
