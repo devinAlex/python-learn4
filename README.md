@@ -106,3 +106,131 @@ for r in xrange(rsheet.nrows):
 wbook.save('C:\\Users\\Administrator\\Desktop\\output.xls')
 
 ```
+### 五，线程操作
+```
+def handle(sid):
+	print 'Download...(%d)' % sid
+	url = 'http://table.finance.yahoo.com/table.scv?s=%s.sz'
+	url %= str(sid).rjust(6,'0')
+	rf = download(url)
+	if rf is None: return
+	
+	print 'Covert to XML....(%d)' % sid
+	fname = str(sid).rjust(6, '0') + '.xml'
+	with open(fname, 'wb') as wf:
+		csvToXml(rf, wf)
+from threading import Thread
+#第一种方法
+t = Thread(target=handle, args=(1,0))
+t.start()
+#第二种方法，使用类
+class MyThread(Thread):
+	def __init__(self, sid):
+		Thread.__init__(self)
+		self.sid = sid
+	
+	def run(self):
+		handle(self.sid)
+
+t = MyThread(1)
+t.start()
+
+t.join()#阻塞 方法 等待线程执行完，才执行主线程
+print 'main thread'
+#==================================================
+class MyThread(Thread):
+	def __init__(self, sid):
+		Thread.__init__(self)
+		self.sid = sid
+	
+	def run(self):
+		handle(self.sid)
+threads =[]
+for i in xrange(1, 11):
+	t = MyThread(i)
+	threads.append(t)
+	t.start()
+for t in threads:
+	t.join()
+```
+由于全局解释器锁GIL（global interpreter lock）的存在，多线程进行CPU密集型操作并不能提高执行效率。</br>
+```
+import csv
+from xml.etree.ElementTree import Element, ElementTree
+import requests
+from StringIO import StringIO
+from threading import Thread
+from Queue import Queue
+
+class DownloadThread(Thread):
+	def __init__(self, sid, queue):
+		Thread.__init__(self)
+		self.sid = sid
+		self.url = 'http://table.finance.yahoo.com/table.scv?s=%s.sz'
+		self.url %= str(sid).rjust(6,'0')
+		self.queue = queue
+	
+	def download(self, url):
+		response = requests.get(url, timeout=3)
+		if response.ok:
+			return StringIO(response.content)
+	
+	def run(self):
+		#1.
+		print 'Download', self.sid
+		data = self.download(self.url)
+		#2. (sid, data)
+		self.queue.put((self.sid, data))
+		
+class CovertThread(Thread):
+	def __init__(self, queue):
+		Thread.__init__(self)
+		self.queue = queue
+
+	def csvToXml(self, scsv, fxml):
+		reader = csv.reader(scsv)
+		headers = reader.next()
+		headers = map(lambda h:h.replace(' ',''), headers)
+	
+		root = Element('Data')
+		for row in reader:
+			eRow = Element('Row')
+			root.append(eRow)
+			for tag, text in zip(headers, row):
+				e = Element(tag)
+				e.text = text
+				eRow.append(e)
+	
+		pretty(root)
+		et = Element(root)
+		et.write(fxml)
+	def run(self):
+		while True:
+			sid, data = self.queue.get()
+			print 'Covert', sid
+			if sid == -1:
+				break
+			if data:
+				fname = str(sid).rjust(6, '0') + '.xml'
+				with open(fname, 'wb') as wf:
+				self.csvToXml(data, wf)
+def pretty(e, level=0):
+	if len(e) > 0:
+		e.text = '\n' + '\t' * (level + 1)
+		for child in e:
+			pretty(child, level + 1)
+		child.tail = child.tail[:-1]
+	e.tail = '\n' + '\t' * level
+
+q = Queue()
+dThreads = [DownloadThread(i, q) for i in xrange(1, 11)]
+cThread = CovertThread(q)
+for t in dThreads:
+	t.start()
+cThread.start()
+
+for t in dThreads:
+	t.join()
+
+q.put((-1, None))
+```
