@@ -113,7 +113,6 @@ def pretty(e, level=0):
 			pretty(child, level + 1)
 		child.tail = child.tail[:-1]
 	e.tail = '\n' + '\t' * level
-
 if __name__ == '__main__':
 	q = Queue()
 	dThreads = [DownloadThread(i, q) for i in xrange(1, 11)]
