@@ -104,5 +104,119 @@ def f(a, b, c):
 f(1, 'abc', [1,2,3])
 f(1, 2, [1,2,3])
 ```
+### 三，如何实现属性可修改的函数装饰器？
+##### 实际案例：
+为分析程序内哪些函数执行时间开销较大，我们定义一个带timeout参数的函数装饰器。装饰功能如下：</br>
+1，统计被装饰函数单次调用运行时间。</br>
+2，时间大于参数timeout的，将此次函数调用记录到log日志中。<br>
+3，运行时刻修改timeout的值。</br>
+##### 解决方案：
+为包裹函数增添一个函数，用来修改闭包中使用的自由变量。在python3中：使用nonlocal访问嵌套作用域中的变量引用.
+```
+from functools import wraps
+import time
+import logging
+
+def warn(timeout):
+	timeout = [timeout]
+	def decorator(func):
+		def wrapper(*args, **kargs):
+			start = time.time()
+			res = func(*args, **kargs)
+			used = time.time() - start
+			if used > timeout[0]:
+				msg = '"%s": %s > %s' % (func.__name__, used, timeout[0])
+				logging.warn(msg)
+			return res
+		def setTimeout(k):
+			#nonlocal timeout
+			timeout[0] = k
+		wrapper.setTimeout = setTimeout 
+		return wrapper
+	
+	return decorator
+from  random import randint
+@warn(1.5)
+def test():
+	print('In Test')
+	while randint(0, 1):
+		time.sleep(0.5)
+
+for _ in range(30):
+	test()
+	
+test.setTimeout(1)
+for _ in range(30):
+	test()
+```
+### 四，如何在类中定义装饰器？
+##### 实际案例：
+实现一个能将函数调用信息记录到日志的装饰器：</br>
+1，把每次函数的调用时间，执行时间，调用次数写入日志。</br>
+2，可以对被装饰函数分组，调用信息记录到不同日志。</br>
+3，动态修改参数，比如日志格式。</br>
+4，动态打开关闭日志输出功能。</br>
+##### 解决方案：
+为了让装饰器在使用上更加灵活，可以把类的实例方法作为装饰器，此时在包裹函数中就可以持有实例对象，便于修改属性和拓展功能。
+```
+import logging
+from time import localtime,time, strftime, sleep
+
+class CallingInfo(object):
+	def __init__(self, name):
+		log = logging.getLogger(name)
+		log.setLevel(logging.INFO)
+		fh = logging.FileHandler(name + '.log')
+		log.addHandler(fh)
+		log.info('Start'.center(50, '-'))
+		self.log = log
+		self.formatter = '%(func)s -> [%(time)s - %(used)s - %(ncalls)s]'
+	
+	def info(self, func):
+		def wrapper(*args, **kargs):
+			wrapper.ncalls += 1
+			lt = localtime()
+			start = time()
+			res = func(*args, **kargs)
+			used = time() - start
+			info = {}
+			info['func'] = func.__name__
+			info['time'] = strftime('%x %X', lt)
+			info['used'] = used
+			info['ncalls'] = wrapper.ncalls
+			msg = self.formatter % info
+			self.log.info(msg)
+			return res
+		wrapper.ncalls = 0
+		return wrapper
+	def setFormatter(self, formatter):
+		self.formatter = formatter
+		
+	def turnOn(self):
+		self.log.setLevel(logging.INFO)
+		
+	def turnOff(self):
+		self.log.setLevel(logging.WARN)
+cinfo1 = CallingInfo('C:\\Users\\Administrator\\Desktop\\mylog1')
+cinfo2 = CallingInfo('C:\\Users\\Administrator\\Desktop\\mylog2')		
+
+cinfo1.setFormatter('%(func)s -> [%(time)s - %(ncalls)s]')
+cinfo2.turnOff()
+
+@cinfo1.info
+def f():
+	print 'in f'
+@cinfo1.info
+def g():
+	print 'in g'
+@cinfo2.info
+def h():
+	print 'in h'
+	
+from random import choice
+for _ in xrange(50):
+	choice([f, g, h])()
+	sleep(choice([0.5, 1, 1.5]))
+```
 
 
