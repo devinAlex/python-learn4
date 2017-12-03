@@ -116,3 +116,44 @@ if __name__ == "__main__":
     os.mkdir("logs")
     test.down_all("logs/")
     test.close()
+///////////////////////////////////
+面向对象的使用场景：
+1，多函数需要使用共同的值，如：数据库的增、删、改、查操作都需要连接数据库字符串、主机名、用户名和密码。
+class SqlHelper:
+    def __init__(self, host, user, pwd):
+        self.host = host
+        self.user = user
+        self.pwd = pwd
+    def 增(self):
+        # 使用主机名、用户名、密码（self.host 、self.user 、self.pwd）打开数据库连接
+        # do something
+        # 关闭数据库连接
+    def 删(self):
+        # 使用主机名、用户名、密码（self.host 、self.user 、self.pwd）打开数据库连接
+        # do something
+        # 关闭数据库连接
+    def 改(self):
+        # 使用主机名、用户名、密码（self.host 、self.user 、self.pwd）打开数据库连接
+        # do something
+        # 关闭数据库连接
+    def 查(self):
+    # 使用主机名、用户名、密码（self.host 、self.user 、self.pwd）打开数据库连接
+        # do something
+        # 关闭数据库连接# do something
+2，需要创建多个事物，每个事物属性个数相同，但是值的需求 如：张三、李四、王五，它们都有姓名、年龄、血型，但其都是不相同。即：属性个数相同，但值不相同。
+class Person:
+ 
+    def __init__(self, name ,age ,blood_type):
+ 
+        self.name = name
+        self.age = age
+        self.blood_type = blood_type
+ 
+ 
+    def detail(self):
+        temp = "i am %s, age %s , blood type %s " % (self.name, self.age, self.blood_type)
+        print temp
+ 
+zhangsan = Person('张三', 18, 'A')
+lisi = Person('李四', 73, 'AB')
+yangwu = Person('杨五', 84, 'A')
